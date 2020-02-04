@@ -208,7 +208,7 @@ subroutine negf_get_pls(handler, npl, ncont, plend, cblk, copy) bind(c)
 end subroutine negf_get_pls
 
 !!* Pass contacts
-subroutine negf_init_contacts(handler, ncont) bind(c)
+subroutine negf_init_contacts(handler, ncont) bind(C)
   use iso_c_binding, only : c_int  ! if:mod:use
   use libnegfAPICommon  ! if:mod:use
   use libnegf           ! if:mod:use
@@ -255,7 +255,7 @@ end subroutine negf_get_params
 
 !!* Passing Hamiltonian from memory
 !!* @param  handler  Contains the handler for the new instance on return
-subroutine negf_set_h(handler, nrow, A, JA, IA)
+subroutine negf_set_h(handler, nrow, A, JA, IA) bind(C)
   use libnegfAPICommon  ! if:mod:use
   use libnegf           ! if:mod:use
   use ln_precision      ! if:mod:use
@@ -272,9 +272,26 @@ subroutine negf_set_h(handler, nrow, A, JA, IA)
   call set_H(LIB%pNEGF,nrow, A, JA, IA)
 end subroutine negf_set_h
 
+!!* Passing fortran style mpi communicator.
+!!* @param  handler The handler to this negf instance.
+subroutine negf_set_mpi_fcomm(handler, comm) bind(C)
+  use libnegfAPICommon  ! if:mod:use
+  use libnegf           ! if:mod:use
+  use ln_precision      ! if:mod:use
+  implicit none
+  integer :: handler(DAC_handlerSize)  ! if:var:in
+  integer, intent(in), value :: comm    ! if:var:in
+
+  type(NEGFpointers) :: LIB
+
+  LIB = transfer(handler, LIB)
+  call set_mpi_bare_comm(LIB%pNEGF, comm)
+
+end subroutine negf_set_mpi_fcomm
+
 !!* Passing Overlap from memory
 !!* @param  handler  Contains the handler for the new instance on return
-subroutine negf_set_s(handler, nrow, A, JA, IA)
+subroutine negf_set_s(handler, nrow, A, JA, IA) bind(C)
   use libnegfAPICommon  ! if:mod:use
   use libnegf           ! if:mod:use
   use ln_precision      ! if:mod:use
