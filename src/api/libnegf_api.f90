@@ -502,6 +502,7 @@ subroutine negf_destruct_libnegf(handler) bind(C)
 
   LIB = transfer(handler, LIB)
   call destroy_negf(LIB%pNEGF)
+  call destroy_elph_model(LIB%pNEGF)
 
 end subroutine negf_destruct_libnegf
 
@@ -709,6 +710,29 @@ subroutine negf_associate_transmission(handler, tr_shape, tr_pointer) bind(c)
 
 end subroutine negf_associate_transmission
 
+!> Pass pointer to energy resolved currents output to a compatible C pointer
+!!  @param[in]  handler:  handler Number for the LIBNEGF instance
+!!  @param[out] tr_shape: shape of currents n-array (in fortran)
+!!  @param[out] tr_pointer: C pointer to data
+subroutine negf_associate_energy_current(handler, currents_shape, currents_pointer) bind(c)
+  use iso_c_binding, only : c_int, c_double, c_loc, c_ptr   ! if:mod:use
+  use libnegfAPICommon  ! if:mod:use
+  use libnegf   ! if:mod:use
+  implicit none
+  integer(c_int) :: handler(DAC_handlerSize)  ! if:var:in
+  integer(c_int), intent(out) :: currents_shape(2) ! if:var:out
+  type(c_ptr), intent(out) :: currents_pointer ! if:var:out
+
+  type(NEGFpointers) :: LIB
+  real(c_double), dimension(:,:), pointer :: f_p
+
+  LIB = transfer(handler, LIB)
+  call associate_current(LIB%pNEGF, f_p)
+  currents_pointer = c_loc(f_p(1,1))
+  currents_shape = shape(f_p)
+
+end subroutine negf_associate_energy_current
+
 !> Pass pointer to transmission output to a compatible C pointer
 !!  @param[in]  handler:  handler Number for the LIBNEGF instance
 !!  @param[out] ldos_shape: shape of ldos n-array (in fortran)
@@ -734,7 +758,7 @@ end subroutine negf_associate_ldos
 
 !!> Set ldos intervals
 !! @param [in] handler: handler Number for the LIBNEGF instance
-!! @param [in] istart(nldos) array with first interval index
+!! @param [in] istart(nldos) array with first interval indelibnegfx
 !! @param [in] iend(nldos) array with first interval index
 subroutine negf_set_ldos_intervals(handler, nldos, istart, iend) bind(c)
   use iso_c_binding, only : c_int ! if:mod:use
@@ -752,7 +776,8 @@ subroutine negf_set_ldos_intervals(handler, nldos, istart, iend) bind(c)
   call set_ldos_intervals(LIB%pNEGF, nldos, istart, iend)
 end subroutine negf_set_ldos_intervals
 
-!> Initialize the ldos container
+
+!> Initialize the ldos containeralloca
 !! @param [in] handler: handler Number for the LIBNEGF instance
 !! @param [in] nldos: number of intervals
 subroutine negf_init_ldos(handler, nldos) bind(c)
@@ -970,3 +995,45 @@ subroutine negf_print_tnegf(handler) bind(c)
   call print_tnegf(LIB%pNEGF)
 
 end subroutine negf_print_tnegf
+
+!!> Set electron-phonon dephasing model.
+!! @param [in] handler: handler Number for the LIBNEGF instance
+!! @param [in] coupling(norbitals): array with coupling strength
+!! @param [in] coupling_size: the sie of the coupling array
+!! @param [in] orbsperatom(natoms): array with the number of orbital per atoms. Ignored for model=1
+!! @param [in] orbspreatom_size: the size of orbsperatom
+!! @param [in] niter: the number of SCBA iterations.
+!! @param [in] model: an integer identifying the model (1: fully diagona, 2: block diagonal, 3: overlap mask)
+subroutine negf_set_elph_dephasing(handler, coupling, coupling_size, orbsperatom, orbsperatom_size, niter, model) bind(c)
+  use iso_c_binding, only : c_int, c_double ! if:mod:use
+  use libnegfAPICommon  ! if:mod:use
+  use libnegf   ! if:mod:use
+  use ln_precision      ! if:mod:use
+  use lib_param      ! if:mod:use
+  implicit none
+  integer(c_int) :: handler(DAC_handlerSize)  ! if:var:in
+  real(c_double), intent(in) :: coupling(*)  ! if:var:in
+  integer(c_int), intent(in), value :: coupling_size ! if:var:in
+  integer(c_int), intent(in) :: orbsperatom(*)  ! if:var:in
+  integer(c_int), intent(in), value :: orbsperatom_size ! if:var:in
+  integer(c_int), intent(in), value :: niter ! if:var:in
+  integer(c_int), intent(in), value :: model  ! if:var:in
+
+  type(NEGFpointers) :: LIB
+  real(dp), allocatable :: coupling_tmp(:)
+  integer, allocatable :: orbsperatom_tmp(:)
+
+  LIB = transfer(handler, LIB)
+
+  allocate(coupling_tmp(coupling_size))
+  coupling_tmp(:) = coupling(1:coupling_size)
+  if (model .eq. 2 .or. model .eq. 3) then
+    allocate(orbsperatom_tmp(orbsperatom_size))
+    orbsperatom_tmp(:) = orbsperatom(1:orbsperatom_size)
+  end if
+
+  if (model .eq. 1) call set_elph_dephasing(LIB%pNEGF, coupling_tmp, niter)
+  if (model .eq. 2) call set_elph_block_dephasing(LIB%pNEGF, coupling_tmp, orbsperatom_tmp, niter)
+  if (model .eq. 3) call set_elph_s_dephasing(LIB%pNEGF, coupling_tmp, orbsperatom_tmp, niter)
+
+end subroutine negf_set_elph_dephasing
