@@ -471,20 +471,20 @@ contains
 
      ! Make sure we called init_contacts in a consistent way.
      if (size(negf%cont) .ne. ncont) then
-       write(*, *) 'size(negf%cont)=',size(negf%cont),'<->  ncont=',ncont     
+       write(*, *) 'size(negf%cont)=',size(negf%cont),'<->  ncont=',ncont
        stop "Error in set_structure: ncont not compatible with previous initialization."
      end if
      ! More sanity checks.
      if (size(contend) .ne. ncont) then
-       write(*, *) 'size(contend)=',size(contend),'<->  ncont=',ncont     
+       write(*, *) 'size(contend)=',size(contend),'<->  ncont=',ncont
        stop "Error in set_structure: contend and ncont mismatch"
      end if
      if (size(surfend) .ne. ncont) then
-       write(*, *) 'size(surfend)=',size(surfend),'<->  ncont=',ncont     
+       write(*, *) 'size(surfend)=',size(surfend),'<->  ncont=',ncont
        stop "Error in set_structure: surfend and ncont mismatch"
      end if
      if (npl .ne. 0 .and. size(plend) .ne. npl) then
-       write(*, *) 'size(plend)=',size(plend),'<->  npl=',npl    
+       write(*, *) 'size(plend)=',size(plend),'<->  npl=',npl
        stop "Error in set_structure: plend and npl mismatch"
      end if
 
@@ -1397,6 +1397,12 @@ contains
   subroutine compute_landauer(negf)
 
     type(Tnegf) :: negf
+    integer:: memory_usage
+
+    write(*,*) 'Memory usage before landauer'
+    call system_mem_usage(memory_usage)
+    write(*,*) memory_usage
+    call writeMemInfo(6)
 
     call extract_cont(negf)
     call tunneling_int_def(negf)
@@ -1407,6 +1413,11 @@ contains
       call electron_current(negf)
     end if
     call destroy_matrices(negf)
+
+    write(*,*) 'Memory usage after landauer'
+    call system_mem_usage(memory_usage)
+    write(*,*) memory_usage
+    call writeMemInfo(6)
 
   end subroutine compute_landauer
 
